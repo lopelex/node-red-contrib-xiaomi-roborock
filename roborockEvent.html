@@ -28,13 +28,17 @@
                 required: false
             },
             pooling: {
-                value: 20,
+                value: 60,
                 required: true,
                 validate: function(value) {
-                    return value > 4;
+                    return value > 9;
                 }
             },
             events: {
+                value: false,
+                required: false
+            },
+            debug: {
                 value: false,
                 required: false
             }
@@ -58,8 +62,12 @@
         <input type="text" id="node-input-name">
     </div>
     <div class="form-row">
-        <label for="node-input-events"><i class="icon-bookmark"></i> Get events</label>
+        <label for="node-input-events"><i class="icon-bookmark"></i> Events</label>
         <input type="checkbox" id="node-input-events">
+    </div>
+    <div class="form-row">
+        <label for="node-input-debug"><i class="icon-bookmark"></i> Debug</label>
+        <input type="checkbox" id="node-input-debug">
     </div>
     <div class="form-row">
         <label for="node-input-pooling"><i class="icon-bookmark"></i> Polling interval (s)</label>

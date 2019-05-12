@@ -20,6 +20,7 @@ const miio = require('miio');
 module.exports = function(RED) {
 
     function RoborockNodeEvent(config) {
+
         var node = this;
         RED.nodes.createNode(node, config);
         node.connection = RED.nodes.getNode(config.connection);
@@ -27,41 +28,70 @@ module.exports = function(RED) {
 
         if (!node.connection) return;
 
-        miio.device({
-                address: node.connection.host,
-                token: node.connection.token
-            })
-            .then(device => {
-                node.device = device;
+        createDevice();
 
-                node.device.updatePollDuration(node.config.pooling * 1000);
+        function createDevice() {
 
-                node.device.on('stateChanged', change => {
-                    getState();
-                });
+            sendDebug('Connect to roborock');
 
-                if (node.config.events) {
-                    node.device.onAny(event => {
-                        node.send({
-                            payload: {
+            if (node.device) {
+                node.device.destroy();
+                delete(node.device);
+                delete(node.socket);
+            }
+
+            miio.device({
+                    address: node.connection.host,
+                    token: node.connection.token
+                })
+                .then(device => {
+                    node.device = device;
+                    node.device.updatePollDuration(node.config.pooling * 1000);
+                    node.device.on('stateChanged', getState);
+
+                    if (node.config.events) {
+                        node.device.onAny(event => {
+                            sendDebug(event);
+                            node.send({
+                                payload: {
+                                    event: event
+                                },
                                 event: event
-                            },
-                            event: event
+                            });
                         });
-                    });
-                }
+                    }
 
-            })
-            .catch(err => {
-                node.warn('Encountered an error while connecting to device: ' + err.message);
-            });
+                    try {
+
+                        node.socket = node.device.handle.api.parent.socket;
+                        node.socket.on('close', () => {
+                            sendDebug('Connection closed');
+                            createDevice();
+                        });
+                        node.socket.on('error', () => {
+                            sendDebug('Connection error');
+                            createDevice();
+                        });
+                        node.socket.on('message', (msg, rinfo) => {
+                            sendDebug('Connection message')
+                        });
+                    } catch (err) {
+                        node.warn('catch:' + err);
+                    }
+                })
+                .catch(err => {
+                    node.warn('Encountered an error while connecting to device: ' + err.message);
+                });
+        }
 
         function getState() {
+
             node.device.state()
                 .then(state => {
                     var jsonState = JSON.stringify(state);
                     if (jsonState !== node.lastState) {
                         node.lastState = JSON.stringify(state);
+                        sendDebug(state);
                         node.send({
                             payload: {
                                 state: state
@@ -71,7 +101,24 @@ module.exports = function(RED) {
                     }
                 });
         }
+
+        function sendDebug(data) {
+
+            if (!node.config.debug) return;
+            let msg = {
+                id: node.id,
+                name: node.name,
+                topic: 'Roborock',
+                property: 'debug',
+                msg: data,
+                _path: ''
+            }
+            msg = RED.util.encodeObject(msg, {
+                maxLength: 1000
+            });
+            RED.comms.publish('debug', msg);
+        }
     }
 
-    RED.nodes.registerType("roborockEvent", RoborockNodeEvent);
+    RED.nodes.registerType('roborockEvent', RoborockNodeEvent);
 }
