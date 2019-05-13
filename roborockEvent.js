@@ -28,6 +28,12 @@ module.exports = function(RED) {
 
         if (!node.connection) return;
 
+        node.status({
+            fill:'red',
+            shape:'ring',
+            text:'disconnected'
+        });
+
         createDevice();
 
         function createDevice() {
@@ -49,6 +55,12 @@ module.exports = function(RED) {
                     node.device.updatePollDuration(node.config.pooling * 1000);
                     node.device.on('stateChanged', getState);
 
+                    node.status({
+                        fill:'green',
+                        shape:'dot',
+                        text:'connected'
+                    });
+
                     if (node.config.events) {
                         node.device.onAny(event => {
                             sendDebug(event);
@@ -66,10 +78,20 @@ module.exports = function(RED) {
                         node.socket = node.device.handle.api.parent.socket;
                         node.socket.on('close', () => {
                             sendDebug('Connection closed');
+                            node.status({
+                                fill:'red',
+                                shape:'ring',
+                                text:'disconnected'
+                            });
                             createDevice();
                         });
                         node.socket.on('error', () => {
                             sendDebug('Connection error');
+                            node.status({
+                                fill:'red',
+                                shape:'ring',
+                                text:'disconnected'
+                            });
                             createDevice();
                         });
                         node.socket.on('message', (msg, rinfo) => {
@@ -77,10 +99,20 @@ module.exports = function(RED) {
                         });
                     } catch (err) {
                         node.warn('catch:' + err);
+                        node.status({
+                            fill:'red',
+                            shape:'ring',
+                            text:'disconnected'
+                        });
                     }
                 })
                 .catch(err => {
                     node.warn('Encountered an error while connecting to device: ' + err.message);
+                    node.status({
+                        fill:'red',
+                        shape:'ring',
+                        text:'disconnected'
+                    });
                 });
         }
 
