@@ -23,6 +23,7 @@
             name: {value:"", required:false},
             command: {value:"", required:false},
             args: {value:"", required:false},
+            jsonargs: {value:false, required:false},
             jobid: {value:"", required:false},
         },
         icon: 'bridge.png',
@@ -51,6 +52,10 @@
     <div class="form-row">
         <label for="node-input-args"><i class="icon-bookmark"></i> Args</label>
         <input type="text" id="node-input-args">
+    </div>
+    <div class="form-row">
+        <label for="node-input-args-jsonargs"><i class="icon-bookmark"></i> JSON Args</label>
+        <input type="checkbox" id="node-input-jsonargs">
     </div>
     <div class="form-row">
         <label for="node-input-jobid"><i class="icon-bookmark"></i> JobID</label>

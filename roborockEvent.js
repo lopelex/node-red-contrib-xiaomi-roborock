@@ -26,113 +26,117 @@ module.exports = function(RED) {
         node.connection = RED.nodes.getNode(config.connection);
         node.config = config;
 
-        if (!node.connection) return;
-
         node.status({
-            fill:'red',
-            shape:'ring',
-            text:'disconnected'
+            fill: 'red',
+            shape: 'ring',
+            text: 'disconnected'
         });
 
-        createDevice();
+        if (!node.connection) return;
 
-        function createDevice() {
+        miio.device({
+                address: node.connection.host,
+                token: node.connection.token
+            })
+            .then(device => {
+                node.device = device;
+                node.device.updatePollDuration(node.config.pooling * 1000);
 
-            sendDebug('Connect to roborock');
-
-            if (node.device) {
-                node.device.destroy();
-                delete(node.device);
-                delete(node.socket);
-            }
-
-            miio.device({
-                    address: node.connection.host,
-                    token: node.connection.token
-                })
-                .then(device => {
-                    node.device = device;
-                    node.device.updatePollDuration(node.config.pooling * 1000);
-                    node.device.on('stateChanged', getState);
-
+                node.device.on('thing:initialized', () => {
+                    sendDebug('initialized');
                     node.status({
-                        fill:'green',
-                        shape:'dot',
-                        text:'connected'
-                    });
-
-                    if (node.config.events) {
-                        node.device.onAny(event => {
-                            sendDebug(event);
-                            node.send({
-                                payload: {
-                                    event: event
-                                },
-                                event: event
-                            });
-                        });
-                    }
-
-                    try {
-
-                        node.socket = node.device.handle.api.parent.socket;
-                        node.socket.on('close', () => {
-                            sendDebug('Connection closed');
-                            node.status({
-                                fill:'red',
-                                shape:'ring',
-                                text:'disconnected'
-                            });
-                            createDevice();
-                        });
-                        node.socket.on('error', () => {
-                            sendDebug('Connection error');
-                            node.status({
-                                fill:'red',
-                                shape:'ring',
-                                text:'disconnected'
-                            });
-                            createDevice();
-                        });
-                        node.socket.on('message', (msg, rinfo) => {
-                            sendDebug('Connection message')
-                        });
-                    } catch (err) {
-                        node.warn('catch:' + err);
-                        node.status({
-                            fill:'red',
-                            shape:'ring',
-                            text:'disconnected'
-                        });
-                    }
-                })
-                .catch(err => {
-                    node.warn('Encountered an error while connecting to device: ' + err.message);
-                    node.status({
-                        fill:'red',
-                        shape:'ring',
-                        text:'disconnected'
+                        fill: 'green',
+                        shape: 'dot',
+                        text: 'connected'
                     });
                 });
-        }
 
-        function getState() {
+                node.device.on('thing:destroyed', () => {
+                    sendDebug('destroyed');
+                    node.status({
+                        fill: 'red',
+                        shape: 'ring',
+                        text: 'disconnected'
+                    });
+                });
 
-            node.device.state()
-                .then(state => {
-                    var jsonState = JSON.stringify(state);
-                    if (jsonState !== node.lastState) {
-                        node.lastState = JSON.stringify(state);
-                        sendDebug(state);
+                node.inteval = setInterval(() => {
+                    sendDebug('polling');
+                    device.call('get_status')
+                        .then(status => {
+                            delete(status[0].msg_seq);
+                            var jsonStatus = JSON.stringify(status[0]);
+                            if (jsonStatus !== node.lastStatus) {
+                                node.lastStatus = jsonStatus;
+                                node.send({
+                                    payload: {
+                                        status: status[0]
+                                    },
+                                    status: status[0]
+                                });
+                            }
+                        })
+                        .catch(err => {
+
+                        });
+                    node.device.state()
+                        .then(state => {
+                            var jsonState = JSON.stringify(state);
+                            if (jsonState !== node.lastState) {
+                                node.lastState = jsonState;
+                                node.send({
+                                    payload: {
+                                        state: state
+                                    },
+                                    state: state
+                                });
+                            }
+                        });
+                }, node.config.pooling * 1000);
+
+                // node.device.on('stateChanged', (test) => {
+                //     node.device.state()
+                //         .then(state => {
+                //             sendDebug('polling state');
+                //             var jsonState = JSON.stringify(state);
+                //             if (jsonState !== node.lastState) {
+                //                 node.lastState = jsonState;
+                //                 node.send({
+                //                     payload: {
+                //                         state: state
+                //                     },
+                //                     state: state
+                //                 });
+                //             }
+                //         });
+                // });
+
+                if (node.config.events) {
+                    node.device.onAny(event => {
                         node.send({
                             payload: {
-                                state: state
+                                event: event
                             },
-                            state: state
+                            event: event
                         });
-                    }
+                    });
+                }
+            })
+            .catch(err => {
+                node.warn('Encountered an error while connecting to device: ' + err.message);
+                node.status({
+                    fill: 'red',
+                    shape: 'ring',
+                    text: 'disconnected'
                 });
-        }
+            });
+
+        node.on('close', () => {
+            sendDebug('close');
+            clearInterval(node.inteval);
+            node.device.destroy();
+            delete(node.device);
+        });
 
         function sendDebug(data) {
 

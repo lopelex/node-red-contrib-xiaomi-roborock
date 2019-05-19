@@ -23,11 +23,18 @@ module.exports = function(RED) {
         var node = this;
         RED.nodes.createNode(node, config);
         node.connection = RED.nodes.getNode(config.connection);
-	
+
 	node.on('input', function(msg) {
           node.command = msg.payload.command || config.command || 'find_me';
           node.args = msg.payload.args || config.args || null;
           node.jobid = msg.payload.jobid || config.jobid || null;
+          if (config.jsonargs) {
+              try {
+                  node.args = JSON.parse(node.args);
+              } catch (e) {
+                  
+              }
+          }
           var device = miio.device({ address: node.connection.host, token: node.connection.token })
             .then(device => {
                 device.call(node.command, node.args)
@@ -40,7 +47,7 @@ module.exports = function(RED) {
                                 console.log(err.message);
                                 node.send( {request: { command: node.command, args: node.args, jobid: node.jobid }, err: err } );
                         });
-
+                device.destroy();
           })
           .catch(err => {
               console.log('Encountered an error while connecting to device');
