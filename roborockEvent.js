@@ -33,14 +33,14 @@ module.exports = function(RED) {
         });
 
         if (!node.connection) return;
-
+        
         miio.device({
                 address: node.connection.host,
                 token: node.connection.token
             })
             .then(device => {
                 node.device = device;
-                node.device.updatePollDuration(node.config.pooling * 1000);
+                node.device.updatePollDuration(node.config.polling * 1000);
 
                 node.device.on('thing:initialized', () => {
                     sendDebug('initialized');
@@ -60,67 +60,55 @@ module.exports = function(RED) {
                     });
                 });
 
-                node.inteval = setInterval(() => {
-                    sendDebug('polling');
-                    device.call('get_status')
-                        .then(status => {
-                            delete(status[0].msg_seq);
-                            var jsonStatus = JSON.stringify(status[0]);
-                            if (jsonStatus !== node.lastStatus) {
-                                node.lastStatus = jsonStatus;
-                                node.send({
-                                    payload: {
+                if (node.config.pollingStatus) {
+                    node.inteval = setInterval(() => {
+                        sendDebug('polling status');
+                        device.call('get_status')
+                            .then(status => {
+                                delete(status[0].msg_seq);
+                                var jsonStatus = JSON.stringify(status[0]);
+                                if (jsonStatus !== node.lastStatus) {
+                                    node.lastStatus = jsonStatus;
+                                    node.send({
+                                        payload: {
+                                            status: status[0]
+                                        },
                                         status: status[0]
-                                    },
-                                    status: status[0]
-                                });
-                            }
-                        })
-                        .catch(err => {
+                                    });
+                                }
+                            })
+                            .catch(err => {
 
-                        });
-                    node.device.state()
-                        .then(state => {
-                            var jsonState = JSON.stringify(state);
-                            if (jsonState !== node.lastState) {
-                                node.lastState = jsonState;
-                                node.send({
-                                    payload: {
+                            });
+                    }, node.config.polling * 1000);
+                }
+
+                node.device.onAny(event => {
+                    if (event === "stateChanged") {
+                        sendDebug('polling state');
+                        node.device.state()
+                            .then(state => {
+                                var jsonState = JSON.stringify(state);
+                                if (jsonState !== node.lastState) {
+                                    node.lastState = jsonState;
+                                    node.send({
+                                        payload: {
+                                            state: state
+                                        },
                                         state: state
-                                    },
-                                    state: state
-                                });
-                            }
-                        });
-                }, node.config.pooling * 1000);
-
-                // node.device.on('stateChanged', (test) => {
-                //     node.device.state()
-                //         .then(state => {
-                //             sendDebug('polling state');
-                //             var jsonState = JSON.stringify(state);
-                //             if (jsonState !== node.lastState) {
-                //                 node.lastState = jsonState;
-                //                 node.send({
-                //                     payload: {
-                //                         state: state
-                //                     },
-                //                     state: state
-                //                 });
-                //             }
-                //         });
-                // });
-
-                if (node.config.events) {
-                    node.device.onAny(event => {
+                                    });
+                                }
+                            });
+                    }
+                    if (node.config.events) {
                         node.send({
                             payload: {
                                 event: event
                             },
                             event: event
                         });
-                    });
-                }
+                    }
+                });
             })
             .catch(err => {
                 node.warn('Encountered an error while connecting to device: ' + err.message);

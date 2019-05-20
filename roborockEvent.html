@@ -27,12 +27,16 @@
                 value: "",
                 required: false
             },
-            pooling: {
+            polling: {
                 value: 60,
                 required: true,
                 validate: function(value) {
                     return value > 9;
                 }
+            },
+            pollingStatus: {
+                value: true,
+                required: false
             },
             events: {
                 value: false,
@@ -54,23 +58,27 @@
 
 <script type="text/x-red" data-template-name="roborockEvent">
     <div class="form-row">
-        <label for="node-input-connection"><i class="icon-bookmark"></i> Connection</label>
+        <label for="node-input-connection"><i class="fa fa-globe"></i> Connection</label>
         <input type="text" id="node-input-connection">
     </div>
     <div class="form-row">
-        <label for="node-input-name"><i class="icon-bookmark"></i> Name</label>
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name">
     </div>
     <div class="form-row">
-        <label for="node-input-events"><i class="icon-bookmark"></i> Events</label>
+        <label for="node-input-polling"><i class="fa fa-clock-o"></i> Polling interval (s)</label>
+        <input type="text" id="node-input-polling">
+    </div>
+    <div class="form-row">
+        <label for="node-input-pollingStatus"><i class="fa fa-check"></i> Polling raw status</label>
+        <input type="checkbox" id="node-input-pollingStatus">
+    </div>
+    <div class="form-row">
+        <label for="node-input-events"><i class="fa fa-check"></i> Events</label>
         <input type="checkbox" id="node-input-events">
     </div>
     <div class="form-row">
-        <label for="node-input-debug"><i class="icon-bookmark"></i> Debug</label>
+        <label for="node-input-debug"><i class="fa fa-check"></i> Debug</label>
         <input type="checkbox" id="node-input-debug">
-    </div>
-    <div class="form-row">
-        <label for="node-input-pooling"><i class="icon-bookmark"></i> Polling interval (s)</label>
-        <input type="text" id="node-input-pooling">
     </div>
 </script>
