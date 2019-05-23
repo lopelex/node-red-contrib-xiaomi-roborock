@@ -33,7 +33,7 @@ module.exports = function(RED) {
         });
 
         if (!node.connection) return;
-        
+
         miio.device({
                 address: node.connection.host,
                 token: node.connection.token
@@ -41,6 +41,7 @@ module.exports = function(RED) {
             .then(device => {
                 node.device = device;
                 node.device.updatePollDuration(node.config.polling * 1000);
+                node.device.updateMaxPollFailures(0);
 
                 node.device.on('thing:initialized', () => {
                     sendDebug('initialized');
@@ -58,6 +59,9 @@ module.exports = function(RED) {
                         shape: 'ring',
                         text: 'disconnected'
                     });
+                    if(node.device) {
+                        node.device.init();
+                    }
                 });
 
                 if (node.config.pollingStatus) {
